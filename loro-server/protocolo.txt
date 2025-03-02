@@ -1,0 +1,17 @@
+Notation: AES(m,k) = Encrypt message m with key k, {m}pk+(X) = encrypt message m with X's public key.
+
+Key creation and uploading
+1. Alice generates pk+(A), pk-(A)
+2. Alice generates password (AP). Encrypts mk(A) = AES(pk-(A),AP)
+3. Alice uploads (mk(A), pk+(A)) to server.
+4. Concurrently, Bob does the same [ BP, mk(B), pk+(B) ]. 
+At this point, Server has pk+(B), pk+(A), mk(A), mk(B).
+
+Then, Alice wants to message (m) Bob 
+1. Alice asks for pk+(B) from server.
+2. Alice generates C = {m}pk+(B)
+3. Alice uploads C to server, tells server to send to Bob.
+
+Now, Bob has the message.
+1. Deciphers mk(B) with BP, obtains pk-(B)
+2. Deciphers C with pk-(B), obtains m.
