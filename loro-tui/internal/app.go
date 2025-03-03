@@ -105,12 +105,14 @@ func (l *Loro) fetchChats() {
 func (l *Loro) getMessages(chatID int, loadChat bool) {
 	offset := 0
 	chatMsg := l.messagesMap[chatID]
+	if chatMsg != nil && loadChat {
+		// if there are messages and key enter was trigger
+		l.setMessagesInTable(chatMsg.messages)
+		chatMesssages.ScrollToEnd()
+		return
+	}
 	if chatMsg != nil {
-		if loadChat {
-			l.setMessagesInTable(chatMsg.messages)
-			chatMesssages.ScrollToEnd()
-			return
-		}
+		// set offset to get older messages from this
 		offset = chatMsg.offset
 	}
 	msg, err := l.GetMessages(chatID, l.limit, offset)
@@ -138,15 +140,19 @@ func (l *Loro) eventLoop() {
 func (l *Loro) handleMessageEvents(msg *models.MessageEvent) {
 	switch msg.Type {
 	case models.Incoming:
+		// if chatID is nil then it is a offline/online notification
+		// if chatID is not nil then is a new message
 		if msg.ChatID != nil {
 			if chat, ok := l.chatsMap[*msg.ChatID]; ok {
 				chatMsg := l.messagesMap[chat.ChatID]
-				if chat == l.selectedChat { // incoming message belongs to current chat
+				if chat == l.selectedChat {
+					// incoming message belongs to current chat
 					chatMsg.offset++
 					chatMsg.messages = append([]*models.Message{msg.Message}, chatMsg.messages...)
 					l.setMessagesInTable(chatMsg.messages)
 				} else {
-					if chatMsg == nil { // there is no messages record
+					if chatMsg == nil {
+						// there is no messages record
 						newChatMsg := &ChatMessages{
 							offset:   1, // storing the first incoming message
 							messages: make([]*models.Message, 0),
@@ -160,19 +166,36 @@ func (l *Loro) handleMessageEvents(msg *models.MessageEvent) {
 				}
 				chatList.Clear()
 				l.setChatFirst(chat.ChatID)
-				for i, chatID := range l.chatList {
-					username := l.chatsMap[chatID].Username
-					newCell := tview.NewTableCell(username).SetExpansion(1)
-					newCell.SetTextColor(style.LoroTheme.SecondaryTextColor)
-					chatList.SetCell(i, 0, newCell)
-					if l.selectedChat != nil && chatID == l.selectedChat.ChatID {
-						chatList.Select(i, 0)
-					}
+
+			} else {
+				// new chat created
+				l.chatsMap[*msg.ChatID] = &models.Chat{
+					ChatID:   *msg.ChatID,
+					Username: *msg.Receiver,
+				}
+				newChatMsg := &ChatMessages{
+					offset:   1, // storing the first incoming message
+					messages: make([]*models.Message, 0),
+				}
+				newChatMsg.messages = append(newChatMsg.messages, msg.Message)
+				l.messagesMap[*msg.ChatID] = newChatMsg
+				l.selectedChat = l.chatsMap[*msg.ChatID]
+				l.chatList = append([]int{*msg.ChatID}, l.chatList...)
+				chatMesssages.Clear()
+				l.setMessagesInTable(newChatMsg.messages)
+				l.SetFocus(chatInput)
+			}
+			for i, chatID := range l.chatList {
+				username := l.chatsMap[chatID].Username
+				newCell := tview.NewTableCell(username).SetExpansion(1)
+				newCell.SetTextColor(style.LoroTheme.SecondaryTextColor)
+				chatList.SetCell(i, 0, newCell)
+				if l.selectedChat != nil && chatID == l.selectedChat.ChatID {
+					chatList.Select(i, 0)
 				}
 			}
 		}
 		l.Application.QueueUpdateDraw(func() {})
-		// if chatID is nil then it is a offline/online notification
 	case models.Forward:
 		if err := l.socketClient.Send(msg.Message); err != nil {
 			panic("ERROR SENDING MESSAGE")
@@ -186,6 +209,7 @@ func (l *Loro) handleChatEvents(event *models.ChatEvent) {
 		l.Application.SetFocus(chatList)
 		l.Application.QueueUpdateDraw(l.fetchChats)
 	case models.GetMessages:
+		// when you scroll up then fetch older messages
 		l.getMessages(event.ChatID, false)
 		l.Application.QueueUpdateDraw(func() {})
 	case models.LoadChat:
@@ -299,7 +323,7 @@ func createChatPage(l *Loro) tview.Primitive {
 		AddInputField("Message", "", 30, nil, nil).
 		AddButton("Send", func() {
 			toUsername := form.GetFormItem(0).(*tview.InputField).GetText()
-			body := form.GetFormItem(0).(*tview.InputField).GetText()
+			body := form.GetFormItem(1).(*tview.InputField).GetText()
 			message := &models.Message{
 				Receiver: &toUsername,
 				Sender:   &l.username,
@@ -309,7 +333,7 @@ func createChatPage(l *Loro) tview.Primitive {
 			l.MessageEvents <- &models.MessageEvent{Type: models.Forward, Message: message}
 
 			Pages.RemovePage("modal")
-			l.Application.SetFocus(chatList)
+			// l.Application.SetFocus(chatList)
 		})
 
 	buttonNewChat.SetStyle(style.ButtonStyle)

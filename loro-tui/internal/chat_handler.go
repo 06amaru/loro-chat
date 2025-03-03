@@ -32,6 +32,7 @@ func (c *ChatHandler) saveChats(chats []*models.Chat) {
 	}
 }
 
+// TODO refactor this logic
 func (c *ChatHandler) setChatFirst(chatID int) {
 	newList := make([]int, 0)
 	for _, id := range c.chatList {
