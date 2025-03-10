@@ -167,11 +167,14 @@ func (l *Loro) handleMessageEvents(msg *models.MessageEvent) {
 				chatList.Clear()
 				l.setChatFirst(chat.ChatID)
 
-			} else {
-				// new chat created
+			} else { // new chat was created
+				username := *msg.Receiver
+				if *msg.Receiver == l.username { // current user cannot be receiver
+					username = *msg.Sender
+				}
 				l.chatsMap[*msg.ChatID] = &models.Chat{
 					ChatID:   *msg.ChatID,
-					Username: *msg.Receiver,
+					Username: username,
 				}
 				newChatMsg := &ChatMessages{
 					offset:   1, // storing the first incoming message
