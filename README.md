@@ -1,6 +1,6 @@
 ## LORO Chat
 
-Minimal chat terminal on real time. The project is a template to share simple message using websocket through the terminal so this can be a bootstrap to your personal terminal chat. It has features like create users, create chat and send messages. 
+Minimal chat terminal on real time. The project is a template to share simple message using websocket through the terminal so this can be a bootstrap to your personal terminal chat. Basic features are create users, create chat and send messages. 
 
 ### Instructions
 
