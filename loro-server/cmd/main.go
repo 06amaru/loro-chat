@@ -1,14 +1,18 @@
 package main
 
 import (
+	"log"
 	"net/http"
 	"os"
 
 	"github.com/joho/godotenv"
 
-	"github.com/jaox1/chat-server/controllers"
-	"github.com/jaox1/chat-server/models"
-	"github.com/jaox1/chat-server/security"
+	"server/controllers"
+
+	"server/db"
+	"server/models"
+	"server/security"
+
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -20,6 +24,13 @@ func init() {
 }
 
 func main() {
+	postgresRepo, err := db.NewPostgresRepository()
+	if err != nil {
+		log.Fatalf("Failure database when the server starts [%v]", err)
+	}
+
+	defer postgresRepo.Close()
+
 	// Echo instance
 	e := echo.New()
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{

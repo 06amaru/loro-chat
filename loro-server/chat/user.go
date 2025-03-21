@@ -5,10 +5,9 @@ import (
 	"encoding/json"
 	"log"
 
+	"loro-chat/server/models"
+
 	"github.com/gorilla/websocket"
-	"github.com/jaox1/chat-server/ent"
-	eu "github.com/jaox1/chat-server/ent/user"
-	"github.com/jaox1/chat-server/models"
 )
 
 /*

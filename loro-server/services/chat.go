@@ -4,11 +4,11 @@ import (
 	"errors"
 	"fmt"
 
+	"loro-chat/server/chat"
+	"loro-chat/server/models"
+	"loro-chat/server/repository"
+
 	"github.com/gorilla/websocket"
-	"github.com/jaox1/chat-server/chat"
-	"github.com/jaox1/chat-server/ent"
-	"github.com/jaox1/chat-server/models"
-	"github.com/jaox1/chat-server/repository"
 )
 
 type ChatService struct {

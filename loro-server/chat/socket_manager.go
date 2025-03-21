@@ -3,7 +3,7 @@ package chat
 import (
 	"fmt"
 
-	"github.com/jaox1/chat-server/models"
+	"loro-chat/server/models"
 )
 
 /*

@@ -3,9 +3,11 @@ package controllers
 import (
 	"net/http"
 
-	"github.com/jaox1/chat-server/models"
-	"github.com/jaox1/chat-server/repository"
-	"github.com/jaox1/chat-server/services"
+	"server/db"
+	"server/models"
+
+	"server/services"
+
 	"github.com/labstack/echo/v4"
 )
 
@@ -13,9 +15,7 @@ type AuthController struct {
 	service services.AuthService
 }
 
-func NewAuthController() AuthController {
-	repo := repository.NewRepository()
-
+func NewAuthController(repo db.PostgresRepository) AuthController {
 	return AuthController{
 		service: services.NewAuthService(repo),
 	}

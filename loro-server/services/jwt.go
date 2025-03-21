@@ -3,8 +3,8 @@ package services
 import (
 	"time"
 
-	"github.com/jaox1/chat-server/models"
-	"github.com/jaox1/chat-server/security"
+	"loro-chat/server/models"
+	"loro-chat/server/security"
 
 	"github.com/golang-jwt/jwt"
 )

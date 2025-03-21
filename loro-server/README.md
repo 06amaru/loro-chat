@@ -10,8 +10,12 @@ The loro chat server implements websockets to communicate between clients.
 SIGNING_KEY=custom_key
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=chat_experiment
+DB_NAME=postgres
 DB_USER=postgres
 DB_PASSWORD=password
+GOOSE_DRIVER=postgres
+GOOSE_DBSTRING=postgres://postgres:password@localhost:5432/postgres
+GOOSE_MIGRATION_DIR=./migrations
 ```
-3. Execute ```go run cmd/main.go```
+3. Execute ```goose up```
+4. Execute ```go run cmd/main.go```

@@ -5,10 +5,11 @@ import (
 	"net/http"
 	"strconv"
 
+	"server/repository"
+	"server/services"
+
 	"github.com/golang-jwt/jwt"
 	"github.com/gorilla/websocket"
-	"github.com/jaox1/chat-server/repository"
-	"github.com/jaox1/chat-server/services"
 	"github.com/labstack/echo/v4"
 )
 

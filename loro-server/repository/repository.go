@@ -1,31 +1,25 @@
 package repository
 
 import (
-	"context"
+	"loro-chat/server/models"
 
-	"entgo.io/ent/dialect/sql"
-	"github.com/jaox1/chat-server/db"
-	"github.com/jaox1/chat-server/ent"
-	ec "github.com/jaox1/chat-server/ent/chat"
-	em "github.com/jaox1/chat-server/ent/message"
-	eu "github.com/jaox1/chat-server/ent/user"
-	"github.com/jaox1/chat-server/models"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Repository struct {
-	Client *ent.Client
+	pool *pgxpool.Pool
 }
 
 func NewRepository() *Repository {
-	postgres := db.GetPostgresClient()
+	/*postgres := db.GetPostgresClient()
 
 	return &Repository{
 		Client: postgres,
-	}
+	}*/
 }
 
 func (repo Repository) SignUp(username, password string, privateK, publicK []byte) error {
-	_, err := repo.Client.User.
+	/*_, err := repo.Client.User.
 		Create().
 		SetUsername(username).
 		SetPassword(password).
@@ -37,11 +31,11 @@ func (repo Repository) SignUp(username, password string, privateK, publicK []byt
 		return err
 	}
 
-	return nil
+	return nil*/
 }
 
 func (repo Repository) FindUser(username string) (*ent.User, error) {
-	user, err := repo.Client.User.
+	/*user, err := repo.Client.User.
 		Query().
 		Where(eu.UsernameEQ(username)).
 		First(context.Background())
@@ -50,11 +44,11 @@ func (repo Repository) FindUser(username string) (*ent.User, error) {
 		return nil, err
 	}
 
-	return user, nil
+	return user, nil*/
 }
 
 func (repo Repository) GetChatMembers(chatID int) ([]*ent.User, error) {
-	chat, err := repo.Client.Chat.
+	/*chat, err := repo.Client.Chat.
 		Get(context.Background(), chatID)
 	if err != nil {
 		return nil, err
@@ -67,11 +61,11 @@ func (repo Repository) GetChatMembers(chatID int) ([]*ent.User, error) {
 		return nil, err
 	}
 
-	return members, nil
+	return members, nil*/
 }
 
 func (repo Repository) GetChats(username string) ([]*models.Chat, error) {
-	user, err := repo.Client.User.Query().
+	/*user, err := repo.Client.User.Query().
 		Where(eu.UsernameEQ(username)).
 		WithChats(func(cq *ent.ChatQuery) {
 			cq.WithMembers()
@@ -99,11 +93,11 @@ func (repo Repository) GetChats(username string) ([]*models.Chat, error) {
 		}
 	}
 
-	return response, nil
+	return response, nil*/
 }
 
 func (repo Repository) FindChatByUsernames(to, from string) (*ent.Chat, error) {
-	chat, err := repo.Client.Chat.
+	/*chat, err := repo.Client.Chat.
 		Query().
 		Where(ec.And(
 			ec.HasMembersWith(eu.UsernameEQ(to)),
@@ -115,11 +109,11 @@ func (repo Repository) FindChatByUsernames(to, from string) (*ent.Chat, error) {
 		return nil, err
 	}
 
-	return chat, nil
+	return chat, nil*/
 }
 
 func (repo Repository) FindChatByID(chatID int, from string) (*ent.Chat, error) {
-	chat, err := repo.Client.Chat.
+	/*chat, err := repo.Client.Chat.
 		Query().
 		Where(ec.And(
 			ec.HasMembersWith(eu.UsernameEQ(from)),
@@ -131,11 +125,11 @@ func (repo Repository) FindChatByID(chatID int, from string) (*ent.Chat, error) 
 		return nil, err
 	}
 
-	return chat, nil
+	return chat, nil*/
 }
 
 func (repo Repository) CreateChat(to, from int) (*ent.Chat, error) {
-	chat, err := repo.Client.Chat.Create().
+	/*chat, err := repo.Client.Chat.Create().
 		SetType("public").
 		AddMemberIDs(to, from).Save(context.Background())
 
@@ -143,11 +137,11 @@ func (repo Repository) CreateChat(to, from int) (*ent.Chat, error) {
 		return nil, err
 	}
 
-	return chat, nil
+	return chat, nil*/
 }
 
 func (repo Repository) GetMessages(chatID, limit, offset int) ([]*models.Message, error) {
-	chat, err := repo.Client.Chat.Query().Where(ec.ID(chatID)).Only(context.Background())
+	/*chat, err := repo.Client.Chat.Query().Where(ec.ID(chatID)).Only(context.Background())
 	if err != nil {
 		return nil, err
 	}
@@ -171,5 +165,5 @@ func (repo Repository) GetMessages(chatID, limit, offset int) ([]*models.Message
 		response = append(response, m)
 	}
 
-	return response, nil
+	return response, nil*/
 }

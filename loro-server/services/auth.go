@@ -1,12 +1,8 @@
 package services
 
 import (
-	"fmt"
-
-	"github.com/jaox1/chat-server/ent"
-	"github.com/jaox1/chat-server/models"
-	"github.com/jaox1/chat-server/repository"
-	"github.com/jaox1/chat-server/security"
+	"loro-chat/server/models"
+	"loro-chat/server/repository"
 )
 
 type AuthService struct {
@@ -18,7 +14,7 @@ func NewAuthService(repo *repository.Repository) AuthService {
 }
 
 func (svc AuthService) SignIn(cred models.Credentials) (*models.Credentials, error) {
-	user, err := svc.repo.FindUser(cred.Username)
+	/*user, err := svc.repo.FindUser(cred.Username)
 	if err != nil {
 		switch errType := err.(type) {
 		case *ent.NotFoundError:
@@ -43,7 +39,7 @@ func (svc AuthService) SignIn(cred models.Credentials) (*models.Credentials, err
 		return nil, fmt.Errorf("password not match")
 	}
 
-	return credentialWithToken(cred)
+	return credentialWithToken(cred)*/
 }
 
 func credentialWithToken(cred models.Credentials) (*models.Credentials, error) {
