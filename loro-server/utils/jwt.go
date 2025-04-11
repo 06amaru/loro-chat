@@ -1,10 +1,7 @@
-package services
+package utils
 
 import (
 	"time"
-
-	"loro-chat/server/models"
-	"loro-chat/server/security"
 
 	"github.com/golang-jwt/jwt"
 )
@@ -14,9 +11,9 @@ type JwtClaims struct {
 	jwt.StandardClaims
 }
 
-func makeToken(cred models.Credentials) (string, error) {
+func MakeToken(username string) (string, error) {
 	jwtClaims := JwtClaims{
-		Username: cred.Username,
+		Username: username,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(time.Second * 24 * 60 * 60).Unix(),
 		},
@@ -24,6 +21,6 @@ func makeToken(cred models.Credentials) (string, error) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwtClaims)
 
-	ss, err := token.SignedString(security.MySigningKey)
+	ss, err := token.SignedString(MySigningKey)
 	return ss, err
 }

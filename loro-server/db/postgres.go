@@ -11,11 +11,11 @@ import (
 	_ "github.com/lib/pq"
 )
 
-type PostgresRepository struct {
+type PostgresPool struct {
 	pool *pgxpool.Pool
 }
 
-func NewPostgresRepository() (*PostgresRepository, error) {
+func NewPostgresRepository() (*PostgresPool, error) {
 
 	host := os.Getenv("DB_HOST")
 	port := os.Getenv("DB_PORT")
@@ -35,32 +35,32 @@ func NewPostgresRepository() (*PostgresRepository, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	return &PostgresRepository{pool: pool}, nil
+	return &PostgresPool{pool: pool}, nil
 }
 
-func (r *PostgresRepository) Close() {
+func (r *PostgresPool) Close() {
 	if r.pool != nil {
 		r.pool.Close()
 	}
 }
 
 // Execute executes a query that doesn't return rows
-func (r *PostgresRepository) Execute(ctx context.Context, query string, args ...interface{}) (pgconn.CommandTag, error) {
+func (r *PostgresPool) Execute(ctx context.Context, query string, args ...interface{}) (pgconn.CommandTag, error) {
 	return r.pool.Exec(ctx, query, args...)
 }
 
 // Query executes a query that returns rows
-func (r *PostgresRepository) Query(ctx context.Context, query string, args ...interface{}) (pgx.Rows, error) {
+func (r *PostgresPool) Query(ctx context.Context, query string, args ...interface{}) (pgx.Rows, error) {
 	return r.pool.Query(ctx, query, args...)
 }
 
 // QueryRow executes a query that returns at most one row
-func (r *PostgresRepository) QueryRow(ctx context.Context, query string, args ...interface{}) pgx.Row {
+func (r *PostgresPool) QueryRow(ctx context.Context, query string, args ...interface{}) pgx.Row {
 	return r.pool.QueryRow(ctx, query, args...)
 }
 
 // Transaction executes function within a transaction
-func (r *PostgresRepository) Transaction(ctx context.Context, fn func(pgx.Tx) error) error {
+func (r *PostgresPool) Transaction(ctx context.Context, fn func(pgx.Tx) error) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return err

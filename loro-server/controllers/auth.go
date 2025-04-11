@@ -15,14 +15,14 @@ type AuthController struct {
 	service services.AuthService
 }
 
-func NewAuthController(repo db.PostgresRepository) AuthController {
+func NewAuthController(repo *db.PostgresPool) AuthController {
 	return AuthController{
 		service: services.NewAuthService(repo),
 	}
 }
 
 func (ctrl AuthController) SignIn(c echo.Context) error {
-	cred := new(models.Credentials)
+	cred := new(models.Credential)
 	if err := c.Bind(cred); err != nil {
 		return err
 	}

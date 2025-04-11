@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"server/repository"
+	"server/db"
 	"server/services"
 
 	"github.com/golang-jwt/jwt"
@@ -37,8 +37,7 @@ type ChatController struct {
 	svc services.ChatService
 }
 
-func NewChatController() ChatController {
-	repo := repository.NewRepository()
+func NewChatController(repo *db.PostgresPool) ChatController {
 
 	return ChatController{
 		svc: services.NewChatService(repo),

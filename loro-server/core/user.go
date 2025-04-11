@@ -1,11 +1,11 @@
-package chat
+package core
 
 import (
 	"context"
 	"encoding/json"
 	"log"
 
-	"loro-chat/server/models"
+	"server/models"
 
 	"github.com/gorilla/websocket"
 )
@@ -18,8 +18,8 @@ type User struct {
 	Username      string
 	Conn          *websocket.Conn
 	SocketManager *SocketManager
-	Database      *ent.Client
-	EntUser       *ent.User
+	//Database      *ent.Client
+	//EntUser       *ent.User
 }
 
 /*

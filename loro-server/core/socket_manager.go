@@ -1,9 +1,9 @@
-package chat
+package core
 
 import (
 	"fmt"
 
-	"loro-chat/server/models"
+	"server/models"
 )
 
 /*

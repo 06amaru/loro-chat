@@ -8,10 +8,10 @@ import (
 	"github.com/joho/godotenv"
 
 	"server/controllers"
+	"server/utils"
 
 	"server/db"
 	"server/models"
-	"server/security"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -20,7 +20,7 @@ import (
 func init() {
 	// LOAD VAR IN LOCAL ENVIRONMENT
 	_ = godotenv.Load(".env")
-	security.MySigningKey = []byte(os.Getenv("SIGNING_KEY"))
+	utils.MySigningKey = []byte(os.Getenv("SIGNING_KEY"))
 }
 
 func main() {
@@ -45,15 +45,15 @@ func main() {
 
 	e.GET("/health-check", func(ctx echo.Context) error { return ctx.JSON(200, models.HealthCheck{Status: "UP"}) })
 
-	authController := controllers.NewAuthController()
+	authController := controllers.NewAuthController(postgresRepo)
 
 	// curl -X POST -H 'Content-Type: application/json' -d '{"username":"jaoks", "password":"sdtc"}' localhost:8081/login
 	e.POST("/login", authController.SignIn)
 
-	chatController := controllers.NewChatController()
+	chatController := controllers.NewChatController(postgresRepo)
 	protected := e.Group("/api")
 
-	protected.Use(security.CustomMiddleware)
+	protected.Use(utils.CustomMiddleware)
 
 	// curl localhost:8081/api/chats --cookie "token=<YOUR_TOKEN>"
 	protected.GET("/chats", chatController.GetChats)
@@ -65,7 +65,7 @@ func main() {
 	protected.POST("/create-chat", chatController.CreateChat)
 
 	sockets := e.Group("/ws")
-	sockets.Use(security.CustomMiddleware)
+	sockets.Use(utils.CustomMiddleware)
 	// websocat "ws://localhost:8081/ws/join?id=<CHAT_ID>" -H "Cookie: token=<YOUR_TOKEN>"
 	sockets.GET("/join", chatController.JoinChat)
 
