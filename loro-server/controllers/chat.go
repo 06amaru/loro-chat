@@ -115,12 +115,12 @@ func (ctrl ChatController) CreateChat(c echo.Context) error {
 	token := c.Get("user").(*jwt.Token)
 	from := token.Claims.(jwt.MapClaims)["username"].(string)
 
-	chat, err := ctrl.svc.VerifyChat(to, from)
+	err := ctrl.svc.VerifyChat(to, from)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 
-	err = ctrl.svc.CreateChat(chat.Sender, chat.Receiver)
+	err = ctrl.svc.CreateChat(to, from)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, err)
 	}

@@ -68,7 +68,14 @@ func (svc ChatService) GetMessages(chatID, limit, offset int) ([]utils.Message, 
 	return messages, nil
 }
 
-func (svc ChatService) GetChats(userID uint) ([]utils.Chat, error) {
+func (svc ChatService) GetChats(username string) ([]utils.Chat, error) {
+	user := utils.User{}
+	err := svc.pool.QueryRow(context.Background(), `select u.id from users u where username = $1`, username).
+		Scan(&user.ID)
+	if err != nil {
+		return nil, err
+	}
+
 	chats := make([]utils.Chat, 0)
 	rows, err := svc.pool.Query(context.Background(),
 		`with user_chats as (
@@ -80,7 +87,7 @@ func (svc ChatService) GetChats(userID uint) ([]utils.Chat, error) {
 			inner join messages m2 on cm2.messages_id = m2.id
 			where user_messages = $1
 		) order by c.id, m.created_at desc
-	) select * from user_chats order by last_message_time desc`, userID)
+	) select * from user_chats order by last_message_time desc`, *user.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -126,11 +133,54 @@ func (svc ChatService) VerifyChat(to, from string) error {
 	return fmt.Errorf("chat with ID %d exists between %s and %s", chat.ID, to, from)
 }
 
-func (svc ChatService) CreateChat(sender, recipient utils.User) error {
+func (svc ChatService) CreateChat(to, from string) error {
+	recipient := utils.User{}
+	err := svc.pool.QueryRow(context.Background(), `select id, username from user where username = $1`, to).
+		Scan(&recipient.ID, &recipient.Username)
+	if err != nil {
+		return err
+	}
+
+	sender := utils.User{}
+	err = svc.pool.QueryRow(context.Background(), `select id, username from user where username = $1`, from).
+		Scan(&sender.ID, &sender.Username)
+	if err != nil {
+		return err
+	}
+
+	err = svc.pool.Transaction(context.Background(), func(tx pgx.Tx) error {
+		var chatID *uint
+
+		// public chat is not encrypted
+		err := tx.QueryRow(context.Background(), `insert into chats(type) values("public") returning id`).Scan(&chatID)
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.Exec(context.Background(), `insert into chat_members(chat_id, user_id) values($1, $2)`, *chatID, *sender.ID)
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.Exec(context.Background(), `insert into chat_members(chat_id, user_id) values($1, $2)`, *chatID, *recipient.ID)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
 	return nil
 }
 
 func (svc ChatService) Subscribe(username string, ws *websocket.Conn) error {
+	user := utils.User{}
+	err := svc.pool.QueryRow(context.Background(), `select u.id from users u where username = $1`, username).
+		Scan(&user.ID)
+	if err != nil {
+		return err
+	}
+
 	/*user, err := svc.repo.FindUser(username)
 	if err != nil {
 		return err

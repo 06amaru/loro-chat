@@ -1,7 +1,6 @@
 package core
 
 import (
-	"context"
 	"encoding/json"
 	"log"
 
@@ -18,8 +17,6 @@ type User struct {
 	Username      string
 	Conn          *websocket.Conn
 	SocketManager *SocketManager
-	//Database      *ent.Client
-	//EntUser       *ent.User
 }
 
 /*
@@ -43,32 +40,32 @@ func (u *User) Listen() error {
 			}
 
 			// if message creation fails then update chat throws panic
-			msg, err := u.Database.Message.Create().SetBody(*msgSerialized.Body).SetFrom(u.EntUser).Save(context.Background())
+			//msg, err := u.Database.Message.Create().SetBody(*msgSerialized.Body).SetFrom(u.EntUser).Save(context.Background())
 			if err != nil {
 				log.Print(err)
 			}
 
 			if msgSerialized.ChatID == nil {
-				ids := make([]int, 0)
-				ids = append(ids, u.EntUser.ID)
-				receiver, err := u.Database.User.Query().Where(eu.UsernameEQ(*msgSerialized.Receiver)).First(context.Background())
+				//ids := make([]int, 0)
+				//ids = append(ids, u.EntUser.ID)
+				/*receiver, err := u.Database.User.Query().Where(eu.UsernameEQ(*msgSerialized.Receiver)).First(context.Background())
 				if err != nil {
 					log.Print(err)
 				} else {
 					ids = append(ids, receiver.ID)
-				}
+				}*/
 
 				// if chat creation fails then update chat throws panic
-				newChat, err := u.Database.Chat.Create().SetType("public").AddMemberIDs(ids...).Save(context.Background())
+				//newChat, err := u.Database.Chat.Create().SetType("public").AddMemberIDs(ids...).Save(context.Background())
 				if err != nil {
 					log.Print(err)
 				}
-				if newChat != nil {
+				/*if newChat != nil {
 					msgSerialized.ChatID = &newChat.ID
-				}
+				}*/
 			}
 
-			_, err = u.Database.Chat.UpdateOneID(int(*msgSerialized.ChatID)).AddMessageIDs(msg.ID).Save(context.Background())
+			//_, err = u.Database.Chat.UpdateOneID(int(*msgSerialized.ChatID)).AddMessageIDs(msg.ID).Save(context.Background())
 			if err != nil {
 				log.Print(err)
 			}

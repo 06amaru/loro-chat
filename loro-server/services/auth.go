@@ -28,7 +28,7 @@ func (svc AuthService) SignIn(cred models.Credential) (string, error) {
 		Scan(&user.ID, &user.Username, &user.Password)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			_, err := svc.pool.Execute(context.Background(), "insert username, created_at, password, private_key, public_key values ($1,$2,$3,$4,$5)",
+			_, err := svc.pool.Execute(context.Background(), "insert into users(username, created_at, password, private_key, public_key) values ($1,$2,$3,$4,$5)",
 				cred.Username,
 				time.Now(),
 				su.CreateHash(cred.Password),
