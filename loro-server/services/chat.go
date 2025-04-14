@@ -122,7 +122,7 @@ func (svc ChatService) VerifyChat(to, from string) error {
 
 	chat := utils.Chat{}
 	err = svc.pool.QueryRow(context.Background(), `select chat_id from public.chat_members where user_id in ($1, $2)
-			group by chat_id`, recipient.ID, sender.ID).Scan(&chat.ID)
+			group by chat_id`, *recipient.ID, *sender.ID).Scan(&chat.ID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil
@@ -130,7 +130,7 @@ func (svc ChatService) VerifyChat(to, from string) error {
 		return err
 	}
 
-	return fmt.Errorf("chat with ID %d exists between %s and %s", chat.ID, to, from)
+	return fmt.Errorf("chat with ID %d exists between %s and %s", *chat.ID, to, from)
 }
 
 func (svc ChatService) CreateChat(to, from string) error {
@@ -181,20 +181,13 @@ func (svc ChatService) Subscribe(username string, ws *websocket.Conn) error {
 		return err
 	}
 
-	/*user, err := svc.repo.FindUser(username)
-	if err != nil {
-		return err
-	}
-
-	newUser := &chat.User{
-		Username:      username,
+	newConnection := &core.Connection{
+		User:          user,
 		Conn:          ws,
 		SocketManager: svc.socketManager,
-		Database:      svc.repo.Client,
-		EntUser:       user,
+		Pool:          svc.pool,
 	}
-	svc.socketManager.Join <- newUser
+	svc.socketManager.Join <- newConnection
 
-	return newUser.Listen()*/
-	return nil
+	return newConnection.Listen()
 }

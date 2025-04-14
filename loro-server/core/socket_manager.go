@@ -11,19 +11,19 @@ The socket manager stores all user connections. Each incoming message
 will be forwarded by the socket manager to the corresponding user.
 */
 type SocketManager struct {
-	Messages chan *models.Message
-	Join     chan *User
-	Leave    chan *User
-	Id       int
-	Users    map[string]*User
+	Messages    chan *models.Message
+	Join        chan *Connection
+	Leave       chan *Connection
+	Id          int
+	Connections map[string]*Connection
 }
 
 func NewSocketManager() *SocketManager {
 	return &SocketManager{
-		Messages: make(chan *models.Message),
-		Join:     make(chan *User),
-		Leave:    make(chan *User),
-		Users:    make(map[string]*User),
+		Messages:    make(chan *models.Message),
+		Join:        make(chan *Connection),
+		Leave:       make(chan *Connection),
+		Connections: make(map[string]*Connection),
 	}
 }
 
@@ -40,47 +40,47 @@ func (c *SocketManager) Run() {
 		}
 	}
 }
-func (c *SocketManager) add(user *User) {
-	if _, ok := c.Users[user.Username]; !ok {
-		c.Users[user.Username] = user
+func (sm *SocketManager) add(con *Connection) {
+	if _, ok := sm.Connections[*con.User.Username]; !ok {
+		sm.Connections[*con.User.Username] = con
 
-		body := fmt.Sprintf("%s is online", user.Username)
-		sender := user.Username
-		c.broadcast(&models.Message{
+		body := fmt.Sprintf("%s is online", *con.User.Username)
+		sender := con.User.Username
+		sm.broadcast(&models.Message{
 			Body:   &body,
-			Sender: &sender,
+			Sender: sender,
 		})
 	}
 }
 
-func (c *SocketManager) broadcast(message *models.Message) {
+func (sm *SocketManager) broadcast(message *models.Message) {
 	if message.Receiver == nil {
 		// offline and online notification to all user
-		for _, user := range c.Users {
+		for _, user := range sm.Connections {
 			user.Send(message)
 		}
 		return
 	}
 
-	if user, ok := c.Users[*message.Sender]; ok {
+	if user, ok := sm.Connections[*message.Sender]; ok {
 		user.Send(message)
 	}
 
-	if user, ok := c.Users[*message.Receiver]; ok {
+	if user, ok := sm.Connections[*message.Receiver]; ok {
 		user.Send(message)
 	}
 }
 
-func (c *SocketManager) disconnect(user *User) {
-	if _, ok := c.Users[user.Username]; ok {
-		defer user.Conn.Close()
-		delete(c.Users, user.Username)
+func (sm *SocketManager) disconnect(con *Connection) {
+	if _, ok := sm.Connections[*con.User.Username]; ok {
+		defer con.Conn.Close()
+		delete(sm.Connections, *con.User.Username)
 
-		body := fmt.Sprintf("%s is offline", user.Username)
-		sender := user.Username
-		c.broadcast(&models.Message{
+		body := fmt.Sprintf("%s is offline", *con.User.Username)
+		sender := con.User.Username
+		sm.broadcast(&models.Message{
 			Body:   &body,
-			Sender: &sender,
+			Sender: sender,
 		})
 	}
 }
