@@ -6,6 +6,7 @@ type Message struct {
 	ID        *uint      `json:"id"`
 	Body      *string    `json:"body"`
 	CreatedAt *time.Time `json:"created_at"`
+	Sender    *string    `json:"sender"`
 }
 type User struct {
 	ID         *uint      `json:"id"`
@@ -17,7 +18,8 @@ type User struct {
 }
 
 type Chat struct {
-	ID              *uint      `json:"id"`
-	LastMessage     *string    `json:"last_message"`
-	LastMessageTime *time.Time `json:"last_message_time"`
+	RecipientUsername *string    `json:"username"`
+	ID                *uint      `json:"id"`
+	LastMessage       *string    `json:"last_message"`
+	LastMessageTime   *time.Time `json:"last_message_time"`
 }

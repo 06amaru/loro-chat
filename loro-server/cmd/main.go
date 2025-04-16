@@ -61,9 +61,6 @@ func main() {
 	// curl "localhost:8081/api/:chatID/messages?limit=5&offset=0" --cookie "token=<YOUR_TOKEN>"
 	protected.GET("/:chatID/messages", chatController.GetMessages)
 
-	// curl "localhost:8081/api/create-chat?to=<USERNAME>" --cookie "token=<YOUR_TOKEN>"
-	protected.POST("/create-chat", chatController.CreateChat)
-
 	sockets := e.Group("/ws")
 	sockets.Use(utils.CustomMiddleware)
 	// websocat "ws://localhost:8081/ws/join?id=<CHAT_ID>" -H "Cookie: token=<YOUR_TOKEN>"

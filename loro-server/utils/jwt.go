@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"server/models"
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -11,7 +12,7 @@ type JwtClaims struct {
 	jwt.StandardClaims
 }
 
-func MakeToken(username string) (string, error) {
+func MakeToken(username string) (*models.Credential, error) {
 	jwtClaims := JwtClaims{
 		Username: username,
 		StandardClaims: jwt.StandardClaims{
@@ -22,5 +23,5 @@ func MakeToken(username string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwtClaims)
 
 	ss, err := token.SignedString(MySigningKey)
-	return ss, err
+	return &models.Credential{Username: username, Token: ss}, err
 }

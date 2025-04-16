@@ -19,7 +19,7 @@ Connection has own web socket connection, database client. Connection needs a
 socket manager to send and receive message from other connections(users).
 */
 type Connection struct {
-	User          utils.User
+	User          *utils.User
 	Conn          *websocket.Conn
 	SocketManager *SocketManager
 	Pool          *db.PostgresPool
@@ -46,14 +46,14 @@ func (u *Connection) Listen() error {
 			}
 
 			// if message creation fails then update chat throws panic
-			err = u.Pool.QueryRow(context.Background(), `insert into messages(body, created_at, user_messages) values($1, $2, $3) return id`,
-				msgSerialized.Body, time.Now(), u.User.ID).Scan(&msgSerialized.ID)
-			if err != nil {
-				log.Print(err)
-			}
+			err = u.Pool.Transaction(context.Background(), func(tx pgx.Tx) error {
+				err := tx.QueryRow(context.Background(), `insert into messages(body, created_at, user_messages) values($1, $2, $3) returning id`,
+					msgSerialized.Body, time.Now(), u.User.ID).Scan(&msgSerialized.ID)
+				if err != nil {
+					return err
+				}
 
-			if msgSerialized.ChatID == nil {
-				u.Pool.Transaction(context.Background(), func(tx pgx.Tx) error {
+				if msgSerialized.ChatID == nil {
 					// create chat
 					err := tx.QueryRow(context.Background(), `insert into chats(type) values($1) returning id`, "public").Scan(&msgSerialized.ChatID)
 					if err != nil {
@@ -76,15 +76,19 @@ func (u *Connection) Listen() error {
 					if err != nil {
 						return err
 					}
+				}
 
-					return nil
-				})
-			}
+				_, err = tx.Exec(context.Background(), `insert into chat_messages(chat_id, message_id) values($1, $2)`,
+					*msgSerialized.ChatID, *msgSerialized.ID)
+				if err != nil {
+					return err
+				}
 
-			_, err = u.Pool.Execute(context.Background(), `insert into chat_messages(chat_id, message_id) values($1, $2)`,
-				*msgSerialized.ChatID, *msgSerialized.ID)
+				return nil
+
+			})
 			if err != nil {
-				log.Print(err)
+				return err
 			}
 
 			u.SocketManager.Messages <- &models.Message{

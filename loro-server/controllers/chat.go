@@ -110,24 +110,6 @@ func (ctrl ChatController) GetChats(c echo.Context) error {
 	return c.JSON(http.StatusOK, chats)
 }
 
-func (ctrl ChatController) CreateChat(c echo.Context) error {
-	to := c.QueryParam("to")
-	token := c.Get("user").(*jwt.Token)
-	from := token.Claims.(jwt.MapClaims)["username"].(string)
-
-	err := ctrl.svc.VerifyChat(to, from)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, err)
-	}
-
-	err = ctrl.svc.CreateChat(to, from)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, err)
-	}
-
-	return nil
-}
-
 func (ctrl ChatController) JoinChat(c echo.Context) error {
 	ws, err := Upgrade(c.Response(), c.Request())
 	if err != nil {

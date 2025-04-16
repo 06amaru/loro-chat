@@ -21,7 +21,7 @@ func NewAuthService(pool *db.PostgresPool) AuthService {
 	return AuthService{pool: pool}
 }
 
-func (svc AuthService) SignIn(cred models.Credential) (string, error) {
+func (svc AuthService) SignIn(cred models.Credential) (*models.Credential, error) {
 	user := utils.User{}
 
 	err := svc.pool.QueryRow(context.Background(), "select id, username, password from users where username = $1", cred.Username).
@@ -35,17 +35,17 @@ func (svc AuthService) SignIn(cred models.Credential) (string, error) {
 				su.Encrypt(su.GenerateKey(), cred.Password),
 				su.GenerateKey())
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 			// user created then token is sent
-			return su.MakeToken(*user.Username)
+			return su.MakeToken(cred.Username)
 		}
-		return "", err
+		return nil, err
 	}
 
 	securePwd := su.CreateHash(cred.Password)
 	if *user.Password != securePwd {
-		return "", fmt.Errorf("Wrong password")
+		return nil, fmt.Errorf("Wrong password")
 	}
 	return su.MakeToken(*user.Username)
 }
