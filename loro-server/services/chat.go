@@ -1,123 +1,129 @@
 package services
 
 import (
-	"errors"
-	"fmt"
+	"context"
+
+	"server/core"
+	"server/db"
+	"server/db/utils"
 
 	"github.com/gorilla/websocket"
-	"github.com/jaox1/chat-server/chat"
-	"github.com/jaox1/chat-server/ent"
-	"github.com/jaox1/chat-server/models"
-	"github.com/jaox1/chat-server/repository"
 )
 
 type ChatService struct {
-	repo          *repository.Repository
-	socketManager *chat.SocketManager
+	pool          *db.PostgresPool
+	socketManager *core.SocketManager
 }
 
-func NewChatService(repo *repository.Repository) ChatService {
-	newSocketManager := chat.NewSocketManager()
+func NewChatService(pool *db.PostgresPool) ChatService {
+	newSocketManager := core.NewSocketManager()
 	go newSocketManager.Run()
-	return ChatService{repo: repo, socketManager: newSocketManager}
+	return ChatService{pool: pool, socketManager: newSocketManager}
 }
 
-func (svc ChatService) GetMembers(chatID int) ([]models.User, error) {
-	members, err := svc.repo.GetChatMembers(chatID)
+func (svc ChatService) GetMembers(chatID int) ([]utils.User, error) {
+	members := make([]utils.User, 0)
+
+	rows, err := svc.pool.Query(context.Background(), `select u.username, u.public_key from users u 
+	inner join chat_members cm on u.id = cm.user_id where cm.chat_id = $1`, chatID)
 	if err != nil {
 		return nil, err
 	}
 
-	membersArr := make([]models.User, 0)
-	for _, v := range members {
-		var m models.User
-		m.Username = v.Username
-		m.PublicKey = v.PublicKey
-		membersArr = append(membersArr, m)
+	for rows.Next() {
+		member := utils.User{}
+		err := rows.Scan(&member.Username, &member.PublicKey)
+		if err != nil {
+			return nil, err
+		}
+
+		members = append(members, member)
 	}
 
-	return membersArr, nil
+	return members, nil
 }
 
-func (svc ChatService) GetMessages(chatID, limit, offset int) (interface{}, error) {
-	messages, err := svc.repo.GetMessages(chatID, limit, offset)
+func (svc ChatService) GetMessages(chatID, limit, offset int) ([]utils.Message, error) {
+	messages := make([]utils.Message, 0)
+	rows, err := svc.pool.Query(context.Background(), `select distinct m.id, m.body, m.created_at, u.username 
+		from messages m 
+		inner join chat_messages cm on m.id = cm.message_id
+		inner join users u on m.user_messages = u.id
+		where cm.chat_id = $1
+		order by m.created_at desc limit $2 offset $3`, chatID, limit, offset)
 	if err != nil {
 		return nil, err
+	}
+
+	for rows.Next() {
+		msg := utils.Message{}
+		err := rows.Scan(&msg.ID, &msg.Body, &msg.CreatedAt, &msg.Sender)
+		if err != nil {
+			return nil, err
+		}
+
+		messages = append(messages, msg)
 	}
 
 	return messages, nil
 }
 
-func (svc ChatService) GetChats(username string) ([]*models.Chat, error) {
-	chats, err := svc.repo.GetChats(username)
+func (svc ChatService) GetChats(username string) ([]utils.Chat, error) {
+	user := utils.User{}
+	err := svc.pool.QueryRow(context.Background(), `select u.id from users u where username = $1`, username).
+		Scan(&user.ID)
 	if err != nil {
 		return nil, err
+	}
+
+	chats := make([]utils.Chat, 0)
+	rows, err := svc.pool.Query(context.Background(),
+		`with user_chats as (
+			select distinct on (c.id) c.id, m.created_at as last_message_time, m.body as last_message from chats c 
+			inner join chat_messages cm on c.id = cm.chat_id
+			inner join messages m on cm.message_id = m.id
+			where c.id in (
+				select distinct chat_id from chat_members
+				where user_id = $1
+			) order by c.id, m.created_at desc
+		) select u.username, uc.* from user_chats uc 
+		inner join chat_members cm on uc.id = cm.chat_id
+		inner join users u on cm.user_id = u.id
+		where cm.user_id != $1 
+		order by uc.last_message_time desc`, *user.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		chat := utils.Chat{}
+		err := rows.Scan(&chat.RecipientUsername, &chat.ID, &chat.LastMessageTime, &chat.LastMessage)
+		if err != nil {
+			return nil, err
+		}
+
+		chats = append(chats, chat)
 	}
 
 	return chats, nil
 }
 
-func (svc ChatService) VerifyChat(to, from string) (*models.EntChat, error) {
-	receiver, err := svc.repo.FindUser(to)
-	if err != nil {
-		return nil, err
-	}
-
-	sender, err := svc.repo.FindUser(from)
-	if err != nil {
-		return nil, err
-	}
-
-	chat, err := svc.existChat(to, from)
-	if err != nil {
-		var notFoundError *ent.NotFoundError
-		switch {
-		case errors.As(err, &notFoundError):
-			// this chat can be created
-			return &models.EntChat{
-				Chat:     chat,
-				Receiver: receiver,
-				Sender:   sender,
-			}, nil
-		default:
-			return nil, err
-		}
-	}
-
-	return nil, fmt.Errorf("chat with ID %d exists between %s and %s", chat.ID, to, from)
-}
-
-func (svc ChatService) CreateChat(sender, receiver *ent.User) error {
-	_, err := svc.repo.CreateChat(sender.ID, receiver.ID)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (svc ChatService) existChat(to, from string) (*ent.Chat, error) {
-	chat, err := svc.repo.FindChatByUsernames(to, from)
-	if chat != nil {
-		return chat, nil
-	}
-	return nil, err
-}
-
 func (svc ChatService) Subscribe(username string, ws *websocket.Conn) error {
-	user, err := svc.repo.FindUser(username)
+	user := utils.User{}
+	err := svc.pool.QueryRow(context.Background(), `select u.id from users u where username = $1`, username).
+		Scan(&user.ID)
 	if err != nil {
 		return err
 	}
+	user.Username = &username
 
-	newUser := &chat.User{
-		Username:      username,
+	newConnection := &core.Connection{
+		User:          &user,
 		Conn:          ws,
 		SocketManager: svc.socketManager,
-		Database:      svc.repo.Client,
-		EntUser:       user,
+		Pool:          svc.pool,
 	}
-	svc.socketManager.Join <- newUser
+	svc.socketManager.Join <- newConnection
 
-	return newUser.Listen()
+	return newConnection.Listen()
 }

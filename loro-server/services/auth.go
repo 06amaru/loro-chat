@@ -1,59 +1,51 @@
 package services
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"server/db"
+	"server/db/utils"
+	"server/models"
+	su "server/utils"
+	"time"
 
-	"github.com/jaox1/chat-server/ent"
-	"github.com/jaox1/chat-server/models"
-	"github.com/jaox1/chat-server/repository"
-	"github.com/jaox1/chat-server/security"
+	"github.com/jackc/pgx/v5"
 )
 
 type AuthService struct {
-	repo *repository.Repository
+	pool *db.PostgresPool
 }
 
-func NewAuthService(repo *repository.Repository) AuthService {
-	return AuthService{repo: repo}
+func NewAuthService(pool *db.PostgresPool) AuthService {
+	return AuthService{pool: pool}
 }
 
-func (svc AuthService) SignIn(cred models.Credentials) (*models.Credentials, error) {
-	user, err := svc.repo.FindUser(cred.Username)
+func (svc AuthService) SignIn(cred models.Credential) (*models.Credential, error) {
+	user := utils.User{}
+
+	err := svc.pool.QueryRow(context.Background(), "select id, username, password from users where username = $1", cred.Username).
+		Scan(&user.ID, &user.Username, &user.Password)
 	if err != nil {
-		switch errType := err.(type) {
-		case *ent.NotFoundError:
-			securePwd := security.CreateHash(cred.Password)
-			publicKey := security.GenerateKey()
-			privateKey := security.GenerateKey()
-			secureKey := security.Encrypt(privateKey, cred.Password)
-
-			err = svc.repo.SignUp(cred.Username, securePwd, publicKey, secureKey)
+		if errors.Is(err, pgx.ErrNoRows) {
+			_, err := svc.pool.Execute(context.Background(), "insert into users(username, created_at, password, private_key, public_key) values ($1,$2,$3,$4,$5)",
+				cred.Username,
+				time.Now(),
+				su.CreateHash(cred.Password),
+				su.Encrypt(su.GenerateKey(), cred.Password),
+				su.GenerateKey())
 			if err != nil {
 				return nil, err
 			}
-
-			return credentialWithToken(cred)
-		default:
-			return nil, errType
+			// user created then token is sent
+			return su.MakeToken(cred.Username)
 		}
-	}
-
-	securePwd := security.CreateHash(cred.Password)
-	if user.Password != securePwd {
-		return nil, fmt.Errorf("password not match")
-	}
-
-	return credentialWithToken(cred)
-}
-
-func credentialWithToken(cred models.Credentials) (*models.Credentials, error) {
-	token, err := makeToken(cred)
-	if err != nil {
 		return nil, err
 	}
 
-	return &models.Credentials{
-		Username: cred.Username,
-		Token:    token,
-	}, nil
+	securePwd := su.CreateHash(cred.Password)
+	if *user.Password != securePwd {
+		return nil, fmt.Errorf("Wrong password")
+	}
+	return su.MakeToken(*user.Username)
 }

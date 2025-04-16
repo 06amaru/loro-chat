@@ -5,10 +5,11 @@ import (
 	"net/http"
 	"strconv"
 
+	"server/db"
+	"server/services"
+
 	"github.com/golang-jwt/jwt"
 	"github.com/gorilla/websocket"
-	"github.com/jaox1/chat-server/repository"
-	"github.com/jaox1/chat-server/services"
 	"github.com/labstack/echo/v4"
 )
 
@@ -36,8 +37,7 @@ type ChatController struct {
 	svc services.ChatService
 }
 
-func NewChatController() ChatController {
-	repo := repository.NewRepository()
+func NewChatController(repo *db.PostgresPool) ChatController {
 
 	return ChatController{
 		svc: services.NewChatService(repo),
@@ -108,24 +108,6 @@ func (ctrl ChatController) GetChats(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, chats)
-}
-
-func (ctrl ChatController) CreateChat(c echo.Context) error {
-	to := c.QueryParam("to")
-	token := c.Get("user").(*jwt.Token)
-	from := token.Claims.(jwt.MapClaims)["username"].(string)
-
-	chat, err := ctrl.svc.VerifyChat(to, from)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, err)
-	}
-
-	err = ctrl.svc.CreateChat(chat.Sender, chat.Receiver)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, err)
-	}
-
-	return nil
 }
 
 func (ctrl ChatController) JoinChat(c echo.Context) error {

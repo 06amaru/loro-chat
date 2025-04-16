@@ -27,8 +27,8 @@ func NewChatHandler(limit int) *ChatHandler {
 
 func (c *ChatHandler) saveChats(chats []*models.Chat) {
 	for _, chat := range chats {
-		c.chatsMap[chat.ChatID] = chat
-		c.chatList = append(c.chatList, chat.ChatID)
+		c.chatsMap[*chat.ChatID] = chat
+		c.chatList = append(c.chatList, *chat.ChatID)
 	}
 }
 

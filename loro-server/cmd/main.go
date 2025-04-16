@@ -1,14 +1,18 @@
 package main
 
 import (
+	"log"
 	"net/http"
 	"os"
 
 	"github.com/joho/godotenv"
 
-	"github.com/jaox1/chat-server/controllers"
-	"github.com/jaox1/chat-server/models"
-	"github.com/jaox1/chat-server/security"
+	"server/controllers"
+	"server/utils"
+
+	"server/db"
+	"server/models"
+
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -16,10 +20,17 @@ import (
 func init() {
 	// LOAD VAR IN LOCAL ENVIRONMENT
 	_ = godotenv.Load(".env")
-	security.MySigningKey = []byte(os.Getenv("SIGNING_KEY"))
+	utils.MySigningKey = []byte(os.Getenv("SIGNING_KEY"))
 }
 
 func main() {
+	postgresRepo, err := db.NewPostgresRepository()
+	if err != nil {
+		log.Fatalf("Failure database when the server starts [%v]", err)
+	}
+
+	defer postgresRepo.Close()
+
 	// Echo instance
 	e := echo.New()
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
@@ -34,15 +45,15 @@ func main() {
 
 	e.GET("/health-check", func(ctx echo.Context) error { return ctx.JSON(200, models.HealthCheck{Status: "UP"}) })
 
-	authController := controllers.NewAuthController()
+	authController := controllers.NewAuthController(postgresRepo)
 
 	// curl -X POST -H 'Content-Type: application/json' -d '{"username":"jaoks", "password":"sdtc"}' localhost:8081/login
 	e.POST("/login", authController.SignIn)
 
-	chatController := controllers.NewChatController()
+	chatController := controllers.NewChatController(postgresRepo)
 	protected := e.Group("/api")
 
-	protected.Use(security.CustomMiddleware)
+	protected.Use(utils.CustomMiddleware)
 
 	// curl localhost:8081/api/chats --cookie "token=<YOUR_TOKEN>"
 	protected.GET("/chats", chatController.GetChats)
@@ -50,11 +61,8 @@ func main() {
 	// curl "localhost:8081/api/:chatID/messages?limit=5&offset=0" --cookie "token=<YOUR_TOKEN>"
 	protected.GET("/:chatID/messages", chatController.GetMessages)
 
-	// curl "localhost:8081/api/create-chat?to=<USERNAME>" --cookie "token=<YOUR_TOKEN>"
-	protected.POST("/create-chat", chatController.CreateChat)
-
 	sockets := e.Group("/ws")
-	sockets.Use(security.CustomMiddleware)
+	sockets.Use(utils.CustomMiddleware)
 	// websocat "ws://localhost:8081/ws/join?id=<CHAT_ID>" -H "Cookie: token=<YOUR_TOKEN>"
 	sockets.GET("/join", chatController.JoinChat)
 

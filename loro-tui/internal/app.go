@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"log"
 	"loro-tui/internal/models"
 	"loro-tui/internal/style"
 
@@ -18,6 +19,7 @@ var (
 )
 
 type Loro struct {
+	*log.Logger
 	*tview.Application
 	*NetworkClient
 	*ChatHandler
@@ -42,6 +44,7 @@ func (l *Loro) setMessagesInTable(messages []*models.Message) {
 	for i := len(messages) - 1; i >= 0; i-- {
 		row := len(messages) - i - 1
 		msg := messages[i]
+		l.Logger.Printf("Message %d: %+v\nSender %s\n", row, *msg.Body, *msg.Sender)
 		newCell := tview.NewTableCell(*msg.Body).SetExpansion(1)
 		newCell.SetTextColor(style.LoroTheme.SecondaryTextColor)
 		if *msg.Sender == l.username {
@@ -70,6 +73,7 @@ func createLoginPage(l *Loro) tview.Primitive {
 			}
 			_, err := l.NetworkClient.Login(*loginRequest)
 			if err != nil {
+				l.Logger.Println("Error logging in: ", err)
 				panic(err)
 			}
 			go l.AddListener()
@@ -88,8 +92,10 @@ func createLoginPage(l *Loro) tview.Primitive {
 }
 
 func (l *Loro) fetchChats() {
+	l.Logger.Println("Fetching chats")
 	chats, err := l.GetChats()
 	if err != nil {
+		l.Logger.Println("Error fetching chats: ", err)
 		panic(err)
 	}
 
@@ -115,14 +121,17 @@ func (l *Loro) getMessages(chatID int, loadChat bool) {
 		// set offset to get older messages from this
 		offset = chatMsg.offset
 	}
+	l.Logger.Printf("Fetching messages for chat %d with offset %d\n", chatID, offset)
 	msg, err := l.GetMessages(chatID, l.limit, offset)
 	if err != nil {
+		l.Logger.Println("Error fetching messages: ", err)
 		panic(err)
 	}
-
+	l.Logger.Printf("Fetched %d messages\n", len(msg))
 	if len(msg) != 0 {
 		chatMsg = l.saveMessages(chatID, msg)
 	}
+	l.Logger.Printf("Messages %+v\n", chatMsg.messages)
 	l.setMessagesInTable(chatMsg.messages)
 }
 
@@ -144,7 +153,7 @@ func (l *Loro) handleMessageEvents(msg *models.MessageEvent) {
 		// if chatID is not nil then is a new message
 		if msg.ChatID != nil {
 			if chat, ok := l.chatsMap[*msg.ChatID]; ok {
-				chatMsg := l.messagesMap[chat.ChatID]
+				chatMsg := l.messagesMap[*chat.ChatID]
 				if chat == l.selectedChat {
 					// incoming message belongs to current chat
 					chatMsg.offset++
@@ -158,14 +167,14 @@ func (l *Loro) handleMessageEvents(msg *models.MessageEvent) {
 							messages: make([]*models.Message, 0),
 						}
 						newChatMsg.messages = append(newChatMsg.messages, msg.Message)
-						l.messagesMap[chat.ChatID] = newChatMsg
+						l.messagesMap[*chat.ChatID] = newChatMsg
 					} else {
 						chatMsg.offset++
 						chatMsg.messages = append([]*models.Message{msg.Message}, chatMsg.messages...)
 					}
 				}
 				chatList.Clear()
-				l.setChatFirst(chat.ChatID)
+				l.setChatFirst(*chat.ChatID)
 
 			} else { // new chat was created
 				username := *msg.Receiver
@@ -173,7 +182,7 @@ func (l *Loro) handleMessageEvents(msg *models.MessageEvent) {
 					username = *msg.Sender
 				}
 				l.chatsMap[*msg.ChatID] = &models.Chat{
-					ChatID:   *msg.ChatID,
+					ChatID:   msg.ChatID,
 					Username: username,
 				}
 				newChatMsg := &ChatMessages{
@@ -193,7 +202,7 @@ func (l *Loro) handleMessageEvents(msg *models.MessageEvent) {
 				newCell := tview.NewTableCell(username).SetExpansion(1)
 				newCell.SetTextColor(style.LoroTheme.SecondaryTextColor)
 				chatList.SetCell(i, 0, newCell)
-				if l.selectedChat != nil && chatID == l.selectedChat.ChatID {
+				if l.selectedChat != nil && chatID == *l.selectedChat.ChatID {
 					chatList.Select(i, 0)
 				}
 			}
@@ -201,6 +210,7 @@ func (l *Loro) handleMessageEvents(msg *models.MessageEvent) {
 		l.Application.QueueUpdateDraw(func() {})
 	case models.Forward:
 		if err := l.socketClient.Send(msg.Message); err != nil {
+			l.Logger.Println("Error sending message: ", err)
 			panic("ERROR SENDING MESSAGE")
 		}
 	}
@@ -251,7 +261,7 @@ func createChatPage(l *Loro) tview.Primitive {
 					message := &models.Message{
 						Body:     &input,
 						Sender:   &l.username,
-						ChatID:   &l.selectedChat.ChatID,
+						ChatID:   l.selectedChat.ChatID,
 						Receiver: &l.selectedChat.Username,
 					}
 					l.MessageEvents <- &models.MessageEvent{Type: models.Forward, Message: message}
@@ -272,7 +282,7 @@ func createChatPage(l *Loro) tview.Primitive {
 		switch event.Key() {
 		case tcell.KeyUp:
 			if row == 0 && l.selectedChat != nil {
-				l.ChatEvents <- &models.ChatEvent{Type: models.GetMessages, ChatID: l.selectedChat.ChatID}
+				l.ChatEvents <- &models.ChatEvent{Type: models.GetMessages, ChatID: *l.selectedChat.ChatID}
 			}
 			return event
 		case tcell.KeyTab:
@@ -372,14 +382,16 @@ func createChatPage(l *Loro) tview.Primitive {
 	return mainLayout
 }
 
-func NewLoro(url string) (*Loro, error) {
+func NewLoro(url string, log *log.Logger) (*Loro, error) {
 
 	networkClient, err := NewNetworkClient(url)
 	if err != nil {
+		log.Println("Error creating network client: ", err)
 		return nil, err
 	}
 
 	loro := &Loro{
+		Logger:        log,
 		Application:   tview.NewApplication(),
 		NetworkClient: networkClient,
 		indexPage:     0,
