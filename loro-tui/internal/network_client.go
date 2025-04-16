@@ -25,7 +25,7 @@ type NetworkClient struct {
 
 func NewNetworkClient(url string) (*NetworkClient, error) {
 	client := http.Client{
-		Timeout: time.Second * 10,
+		Timeout: time.Second * 100,
 	}
 
 	response, err := client.Get(url + "/health-check")

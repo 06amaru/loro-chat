@@ -14,6 +14,6 @@ type ChatEvent struct {
 }
 
 type Chat struct {
-	ChatID   int    `json:"chatID"`
+	ChatID   *int   `json:"id"`
 	Username string `json:"username"`
 }
