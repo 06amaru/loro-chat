@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"time"
 
@@ -54,28 +55,41 @@ func (u *Connection) Listen() error {
 				}
 
 				if msgSerialized.ChatID == nil {
-					// create chat
-					err := tx.QueryRow(context.Background(), `insert into chats(type) values($1) returning id`, "public").Scan(&msgSerialized.ChatID)
-					if err != nil {
-						return err
-					}
-
-					_, err = tx.Exec(context.Background(), `insert into chat_members(chat_id, user_id) values($1, $2)`, *msgSerialized.ChatID, *u.User.ID)
-					if err != nil {
-						return err
-					}
-
 					// check if recipient exists
 					var recipientID *uint
-					err = tx.QueryRow(context.Background(), `select id from users where username = $1`, msgSerialized.Receiver).Scan(&recipientID)
+					err := tx.QueryRow(context.Background(), `select id from users where username = $1`, msgSerialized.Receiver).Scan(&recipientID)
 					if err != nil {
 						return err
 					}
 
-					_, err = tx.Exec(context.Background(), `insert into chat_members(chat_id, user_id) values($1, $2)`, *msgSerialized.ChatID, *recipientID)
+					// check chat between users was already created
+					err = tx.QueryRow(context.Background(), `with user_chats as (
+																select cm.chat_id from chat_members cm where cm.user_id = $1
+															) select uc.chat_id from user_chats uc
+															inner join chat_members cm on cm.chat_id  = uc.chat_id
+															where cm.user_id = $2`, *recipientID, *u.User.ID).Scan(&msgSerialized.ChatID)
 					if err != nil {
-						return err
+						if errors.Is(err, pgx.ErrNoRows) {
+							// create chat
+							err = tx.QueryRow(context.Background(), `insert into chats(type) values($1) returning id`, "public").Scan(&msgSerialized.ChatID)
+							if err != nil {
+								return err
+							}
+
+							_, err = tx.Exec(context.Background(), `insert into chat_members(chat_id, user_id) values($1, $2)`, *msgSerialized.ChatID, *u.User.ID)
+							if err != nil {
+								return err
+							}
+
+							_, err = tx.Exec(context.Background(), `insert into chat_members(chat_id, user_id) values($1, $2)`, *msgSerialized.ChatID, *recipientID)
+							if err != nil {
+								return err
+							}
+						} else {
+							return err
+						}
 					}
+
 				}
 
 				_, err = tx.Exec(context.Background(), `insert into chat_messages(chat_id, message_id) values($1, $2)`,
